@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/alc6/mig2schema/providers"
 )
 
 func TestPostgreSQLManager(t *testing.T) {
@@ -25,10 +26,10 @@ func TestPostgreSQLSchemaExtractor(t *testing.T) {
 	t.Run("delegates_to_functions", func(t *testing.T) {
 		extractor := NewPostgreSQLSchemaExtractor()
 
-		tables := []Table{
+		tables := []providers.Table{
 			{
 				Name: "test",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				},
 			},

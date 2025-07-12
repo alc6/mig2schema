@@ -12,6 +12,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 	_ "github.com/lib/pq"
+
+	"github.com/alc6/mig2schema/providers"
 )
 
 type PostgreSQLManager struct {
@@ -96,21 +98,25 @@ func (p *PostgreSQLManager) GetDB() *sql.DB {
 	return p.db
 }
 
+func (p *PostgreSQLManager) GetConnectionString() string {
+	return p.connStr
+}
+
 type PostgreSQLSchemaExtractor struct{}
 
 func NewPostgreSQLSchemaExtractor() SchemaExtractor {
 	return &PostgreSQLSchemaExtractor{}
 }
 
-func (e *PostgreSQLSchemaExtractor) ExtractSchema(db *sql.DB) ([]Table, error) {
+func (e *PostgreSQLSchemaExtractor) ExtractSchema(db *sql.DB) ([]providers.Table, error) {
 	return ExtractSchema(db)
 }
 
-func (e *PostgreSQLSchemaExtractor) FormatSchema(tables []Table) string {
+func (e *PostgreSQLSchemaExtractor) FormatSchema(tables []providers.Table) string {
 	return FormatSchema(tables)
 }
 
-func (e *PostgreSQLSchemaExtractor) FormatSchemaAsSQL(tables []Table) string {
+func (e *PostgreSQLSchemaExtractor) FormatSchemaAsSQL(tables []providers.Table) string {
 	return FormatSchemaAsSQL(tables)
 }
 

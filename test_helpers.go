@@ -4,20 +4,24 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/alc6/mig2schema/providers"
 )
 
 // MockDatabaseManager is a mock implementation of DatabaseManager for testing
 type MockDatabaseManager struct {
-	SetupFunc         func(ctx context.Context) error
-	CloseFunc         func(ctx context.Context) error
-	RunMigrationsFunc func(migrations []Migration) error
-	GetDBFunc         func() *sql.DB
+	SetupFunc            func(ctx context.Context) error
+	CloseFunc            func(ctx context.Context) error
+	RunMigrationsFunc    func(migrations []Migration) error
+	GetDBFunc            func() *sql.DB
+	GetConnectionStringFunc func() string
 	
 	// Track calls for verification
-	SetupCalled         bool
-	CloseCalled         bool
-	RunMigrationsCalled bool
-	GetDBCalled         bool
+	SetupCalled              bool
+	CloseCalled              bool
+	RunMigrationsCalled      bool
+	GetDBCalled              bool
+	GetConnectionStringCalled bool
 }
 
 func (m *MockDatabaseManager) Setup(ctx context.Context) error {
@@ -52,28 +56,36 @@ func (m *MockDatabaseManager) GetDB() *sql.DB {
 	return nil
 }
 
-// MockSchemaExtractor is a mock implementation of SchemaExtractor for testing
-type MockSchemaExtractor struct {
-	ExtractSchemaFunc     func(db *sql.DB) ([]Table, error)
-	FormatSchemaFunc      func(tables []Table) string
-	FormatSchemaAsSQLFunc func(tables []Table) string
+func (m *MockDatabaseManager) GetConnectionString() string {
+	m.GetConnectionStringCalled = true
+	if m.GetConnectionStringFunc != nil {
+		return m.GetConnectionStringFunc()
+	}
+	return "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"
 }
 
-func (m *MockSchemaExtractor) ExtractSchema(db *sql.DB) ([]Table, error) {
+// MockSchemaExtractor is a mock implementation of SchemaExtractor for testing
+type MockSchemaExtractor struct {
+	ExtractSchemaFunc     func(db *sql.DB) ([]providers.Table, error)
+	FormatSchemaFunc      func(tables []providers.Table) string
+	FormatSchemaAsSQLFunc func(tables []providers.Table) string
+}
+
+func (m *MockSchemaExtractor) ExtractSchema(db *sql.DB) ([]providers.Table, error) {
 	if m.ExtractSchemaFunc != nil {
 		return m.ExtractSchemaFunc(db)
 	}
-	return []Table{}, nil
+	return []providers.Table{}, nil
 }
 
-func (m *MockSchemaExtractor) FormatSchema(tables []Table) string {
+func (m *MockSchemaExtractor) FormatSchema(tables []providers.Table) string {
 	if m.FormatSchemaFunc != nil {
 		return m.FormatSchemaFunc(tables)
 	}
 	return ""
 }
 
-func (m *MockSchemaExtractor) FormatSchemaAsSQL(tables []Table) string {
+func (m *MockSchemaExtractor) FormatSchemaAsSQL(tables []providers.Table) string {
 	if m.FormatSchemaAsSQLFunc != nil {
 		return m.FormatSchemaAsSQLFunc(tables)
 	}

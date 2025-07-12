@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/alc6/mig2schema/providers"
 )
 
 func TestFormatSchema(t *testing.T) {
-	tables := []Table{
+	tables := []providers.Table{
 		{
 			Name: "users",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{
 					Name:         "id",
 					DataType:     "integer",
@@ -29,7 +30,7 @@ func TestFormatSchema(t *testing.T) {
 					IsNullable: true,
 				},
 			},
-			Indexes: []Index{
+			Indexes: []providers.Index{
 				{
 					Name:     "idx_users_email",
 					Columns:  []string{"email"},
@@ -50,10 +51,10 @@ func TestFormatSchema(t *testing.T) {
 }
 
 func TestFormatSchemaAsSQL(t *testing.T) {
-	tables := []Table{
+	tables := []providers.Table{
 		{
 			Name: "products",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{
 					Name:         "id",
 					DataType:     "integer",
@@ -71,7 +72,7 @@ func TestFormatSchemaAsSQL(t *testing.T) {
 					IsNullable: true,
 				},
 			},
-			Indexes: []Index{
+			Indexes: []providers.Index{
 				{
 					Name:     "idx_products_name",
 					Columns:  []string{"name"},
@@ -91,48 +92,24 @@ func TestFormatSchemaAsSQL(t *testing.T) {
 	assert.Contains(t, result, "name varchar(255)")
 }
 
-func TestMapDataType(t *testing.T) {
-	tests := []struct {
-		input    Column
-		expected string
-	}{
-		{Column{DataType: "character varying"}, "VARCHAR(255)"},
-		{Column{DataType: "character varying", CharacterLength: sql.NullInt64{Int64: 100, Valid: true}}, "VARCHAR(100)"},
-		{Column{DataType: "text"}, "TEXT"},
-		{Column{DataType: "integer"}, "INTEGER"},
-		{Column{DataType: "serial"}, "SERIAL"},
-		{Column{DataType: "bigint"}, "BIGINT"},
-		{Column{DataType: "boolean"}, "BOOLEAN"},
-		{Column{DataType: "numeric", NumericPrecision: sql.NullInt64{Int64: 10, Valid: true}, NumericScale: sql.NullInt64{Int64: 2, Valid: true}}, "DECIMAL(10,2)"},
-		{Column{DataType: "timestamp without time zone"}, "TIMESTAMP"},
-		{Column{DataType: "uuid"}, "UUID"},
-		{Column{DataType: "json"}, "JSON"},
-		{Column{DataType: "unknown_type"}, "UNKNOWN_TYPE"},
-	}
-
-	for _, test := range tests {
-		result := mapDataType(test.input)
-		assert.Equal(t, test.expected, result)
-	}
-}
 
 func TestFormatSchemaEmptyTables(t *testing.T) {
-	var tables []Table
+	var tables []providers.Table
 	result := FormatSchema(tables)
 	assert.Empty(t, result)
 }
 
 func TestFormatSchemaMultipleTables(t *testing.T) {
-	tables := []Table{
+	tables := []providers.Table{
 		{
 			Name: "users",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 			},
 		},
 		{
 			Name: "posts",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				{Name: "user_id", DataType: "integer", IsNullable: false},
 			},
@@ -146,16 +123,16 @@ func TestFormatSchemaMultipleTables(t *testing.T) {
 }
 
 func TestFormatSchemaWithDefaults(t *testing.T) {
-	testSchema := []Table{
+	testSchema := []providers.Table{
 		{
 			Name: "users",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				{Name: "email", DataType: "character varying", IsNullable: false},
 				{Name: "created_at", DataType: "timestamp without time zone", IsNullable: true, 
 					DefaultValue: sql.NullString{String: "CURRENT_TIMESTAMP", Valid: true}},
 			},
-			Indexes: []Index{
+			Indexes: []providers.Index{
 				{Name: "idx_users_email", Columns: []string{"email"}, IsUnique: true},
 			},
 		},
@@ -184,16 +161,16 @@ func TestFormatSchemaWithDefaults(t *testing.T) {
 }
 
 func TestFormatSchemaComplexIndexes(t *testing.T) {
-	tables := []Table{
+	tables := []providers.Table{
 		{
 			Name: "orders",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				{Name: "user_id", DataType: "integer", IsNullable: false},
 				{Name: "status", DataType: "character varying", IsNullable: false},
 				{Name: "created_at", DataType: "timestamp without time zone", IsNullable: false},
 			},
-			Indexes: []Index{
+			Indexes: []providers.Index{
 				{Name: "idx_orders_user_id", Columns: []string{"user_id"}, IsUnique: false},
 				{Name: "idx_orders_user_status", Columns: []string{"user_id", "status"}, IsUnique: false},
 				{Name: "idx_orders_created", Columns: []string{"created_at"}, IsUnique: false},

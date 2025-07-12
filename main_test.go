@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/alc6/mig2schema/providers"
 )
 
 func TestMigrationToSchema(t *testing.T) {
@@ -66,7 +67,7 @@ func TestMigrationToSchema(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, schema, 2)
 
-	var usersTable *Table
+	var usersTable *providers.Table
 	for i := range schema {
 		if schema[i].Name == "users" {
 			usersTable = &schema[i]
@@ -87,10 +88,10 @@ func TestMigrationToSchema(t *testing.T) {
 }
 
 func TestFormatSchemaOutputModes(t *testing.T) {
-	tables := []Table{
+	tables := []providers.Table{
 		{
 			Name: "test_table",
-			Columns: []Column{
+			Columns: []providers.Column{
 				{
 					Name:         "id",
 					DataType:     "integer",
@@ -239,7 +240,7 @@ func TestProcessSchemaUnit(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return nil, fmt.Errorf("failed to query information_schema")
 			},
 		}
@@ -259,10 +260,10 @@ func TestProcessSchemaUnit(t *testing.T) {
 		defer func() { extractMode = originalExtractMode }()
 
 		testMigrations := []Migration{{Name: "001_test", UpFile: "001_test.up.sql"}}
-		testSchema := []Table{
+		testSchema := []providers.Table{
 			{
 				Name: "users",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 					{Name: "email", DataType: "varchar", IsNullable: false},
 				},
@@ -280,10 +281,10 @@ func TestProcessSchemaUnit(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return testSchema, nil
 			},
-			FormatSchemaFunc: func(tables []Table) string {
+			FormatSchemaFunc: func(tables []providers.Table) string {
 				return "Table: users\nColumns:\n  - id integer NOT NULL (PRIMARY KEY)\n  - email varchar NOT NULL\n"
 			},
 		}
@@ -302,10 +303,10 @@ func TestProcessSchemaUnit(t *testing.T) {
 		defer func() { extractMode = originalExtractMode }()
 
 		testMigrations := []Migration{{Name: "001_test", UpFile: "001_test.up.sql"}}
-		testSchema := []Table{
+		testSchema := []providers.Table{
 			{
 				Name: "users",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 					{Name: "email", DataType: "varchar", IsNullable: false},
 				},
@@ -323,10 +324,10 @@ func TestProcessSchemaUnit(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return testSchema, nil
 			},
-			FormatSchemaAsSQLFunc: func(tables []Table) string {
+			FormatSchemaAsSQLFunc: func(tables []providers.Table) string {
 				return "create table users (\n    id integer not null,\n    email varchar not null,\n    primary key (id)\n);\n"
 			},
 		}

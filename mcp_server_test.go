@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/alc6/mig2schema/providers"
 )
 
 func TestStartMCPServerExists(t *testing.T) {
@@ -109,7 +110,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		result, err := extractSchemaCore(ctx, tempDir, "info")
+		result, err := extractSchemaCore(ctx, tempDir, "info", "native")
 		require.NoError(t, err)
 		assert.Contains(t, result, "Table: test_table")
 	})
@@ -125,7 +126,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		result, err := extractSchemaCore(ctx, tempDir, "sql")
+		result, err := extractSchemaCore(ctx, tempDir, "sql", "native")
 		require.NoError(t, err)
 		assert.Contains(t, result, "create table sql_test")
 	})
@@ -136,7 +137,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		_, err := extractSchemaCore(ctx, tempDir, "info")
+		_, err := extractSchemaCore(ctx, tempDir, "info", "native")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no migration files found")
 	})
@@ -145,7 +146,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		_, err := extractSchemaCore(ctx, "/nonexistent/path", "info")
+		_, err := extractSchemaCore(ctx, "/nonexistent/path", "info", "native")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "migration directory does not exist")
 	})
@@ -226,10 +227,10 @@ func TestMCPExtractionLogic(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, migrations)
 
-		testTables := []Table{
+		testTables := []providers.Table{
 			{
 				Name: "test_table",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				},
 			},
@@ -249,10 +250,10 @@ func TestExtractSchemaCoreWithDeps(t *testing.T) {
 
 	t.Run("successful_extraction_info_format", func(t *testing.T) {
 		testMigrations := []Migration{{Name: "001_test", UpFile: "001_test.up.sql"}}
-		testSchema := []Table{
+		testSchema := []providers.Table{
 			{
 				Name: "test_table",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 					{Name: "name", DataType: "varchar", IsNullable: true},
 				},
@@ -270,10 +271,10 @@ func TestExtractSchemaCoreWithDeps(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return testSchema, nil
 			},
-			FormatSchemaFunc: func(tables []Table) string {
+			FormatSchemaFunc: func(tables []providers.Table) string {
 				return "Table: test_table\nColumns:\n  - id integer NOT NULL (PRIMARY KEY)\n  - name varchar NULL\n"
 			},
 		}
@@ -287,10 +288,10 @@ func TestExtractSchemaCoreWithDeps(t *testing.T) {
 
 	t.Run("successful_extraction_sql_format", func(t *testing.T) {
 		testMigrations := []Migration{{Name: "001_test", UpFile: "001_test.up.sql"}}
-		testSchema := []Table{
+		testSchema := []providers.Table{
 			{
 				Name: "sql_test",
-				Columns: []Column{
+				Columns: []providers.Column{
 					{Name: "id", DataType: "integer", IsNullable: false, IsPrimaryKey: true},
 				},
 			},
@@ -307,10 +308,10 @@ func TestExtractSchemaCoreWithDeps(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return testSchema, nil
 			},
-			FormatSchemaAsSQLFunc: func(tables []Table) string {
+			FormatSchemaAsSQLFunc: func(tables []providers.Table) string {
 				return "create table sql_test (\n    id integer not null,\n    primary key (id)\n);\n"
 			},
 		}
@@ -403,7 +404,7 @@ func TestExtractSchemaCoreWithDeps(t *testing.T) {
 			},
 		}
 		mockExtractor := &MockSchemaExtractor{
-			ExtractSchemaFunc: func(db *sql.DB) ([]Table, error) {
+			ExtractSchemaFunc: func(db *sql.DB) ([]providers.Table, error) {
 				return nil, fmt.Errorf("information_schema query failed")
 			},
 		}
