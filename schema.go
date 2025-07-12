@@ -14,11 +14,14 @@ type Table struct {
 }
 
 type Column struct {
-	Name         string
-	DataType     string
-	IsNullable   bool
-	DefaultValue sql.NullString
-	IsPrimaryKey bool
+	Name              string
+	DataType          string
+	IsNullable        bool
+	DefaultValue      sql.NullString
+	IsPrimaryKey      bool
+	CharacterLength   sql.NullInt64
+	NumericPrecision  sql.NullInt64
+	NumericScale      sql.NullInt64
 }
 
 type Index struct {
@@ -96,7 +99,10 @@ func getColumns(db *sql.DB, tableName string) ([]Column, error) {
 			c.data_type,
 			c.is_nullable = 'YES' as is_nullable,
 			c.column_default,
-			COALESCE(tc.constraint_type = 'PRIMARY KEY', false) as is_primary_key
+			COALESCE(tc.constraint_type = 'PRIMARY KEY', false) as is_primary_key,
+			c.character_maximum_length,
+			c.numeric_precision,
+			c.numeric_scale
 		FROM information_schema.columns c
 		LEFT JOIN information_schema.key_column_usage kcu ON 
 			c.table_name = kcu.table_name AND c.column_name = kcu.column_name
@@ -117,7 +123,7 @@ func getColumns(db *sql.DB, tableName string) ([]Column, error) {
 		var col Column
 		var defaultValue sql.NullString
 
-		if err := rows.Scan(&col.Name, &col.DataType, &col.IsNullable, &defaultValue, &col.IsPrimaryKey); err != nil {
+		if err := rows.Scan(&col.Name, &col.DataType, &col.IsNullable, &defaultValue, &col.IsPrimaryKey, &col.CharacterLength, &col.NumericPrecision, &col.NumericScale); err != nil {
 			return nil, err
 		}
 
@@ -195,7 +201,7 @@ func FormatSchema(tables []Table) string {
 			}
 
 			sb.WriteString(fmt.Sprintf("  - %s %s %s%s%s\n",
-				col.Name, col.DataType, nullable, defaultVal, pk))
+				col.Name, mapDataType(col), nullable, defaultVal, pk))
 		}
 
 		if len(table.Indexes) > 0 {
@@ -227,7 +233,7 @@ func FormatSchemaAsSQL(tables []Table) string {
 
 		for _, col := range table.Columns {
 			var colDef strings.Builder
-			colDef.WriteString(fmt.Sprintf("    %s %s", col.Name, strings.ToLower(mapDataType(col.DataType))))
+			colDef.WriteString(fmt.Sprintf("    %s %s", col.Name, strings.ToLower(mapDataType(col))))
 
 			if !col.IsNullable {
 				colDef.WriteString(" not null")
@@ -269,19 +275,84 @@ func FormatSchemaAsSQL(tables []Table) string {
 	return sb.String()
 }
 
-func mapDataType(pgType string) string {
-	switch pgType {
+func mapDataType(col Column) string {
+	switch col.DataType {
 	case "character varying":
+		if col.CharacterLength.Valid {
+			return fmt.Sprintf("VARCHAR(%d)", col.CharacterLength.Int64)
+		}
 		return "VARCHAR(255)"
+	case "character", "char":
+		if col.CharacterLength.Valid {
+			return fmt.Sprintf("CHAR(%d)", col.CharacterLength.Int64)
+		}
+		return "CHAR"
 	case "text":
 		return "TEXT"
 	case "integer":
 		return "INTEGER"
+	case "bigint":
+		return "BIGINT"
+	case "smallint":
+		return "SMALLINT"
+	case "serial":
+		return "SERIAL"
+	case "bigserial":
+		return "BIGSERIAL"
+	case "smallserial":
+		return "SMALLSERIAL"
 	case "boolean":
 		return "BOOLEAN"
+	case "real":
+		return "REAL"
+	case "double precision":
+		return "DOUBLE PRECISION"
+	case "numeric", "decimal":
+		if col.NumericPrecision.Valid && col.NumericScale.Valid {
+			return fmt.Sprintf("DECIMAL(%d,%d)", col.NumericPrecision.Int64, col.NumericScale.Int64)
+		} else if col.NumericPrecision.Valid {
+			return fmt.Sprintf("DECIMAL(%d)", col.NumericPrecision.Int64)
+		}
+		return "DECIMAL"
+	case "money":
+		return "MONEY"
 	case "timestamp without time zone":
 		return "TIMESTAMP"
+	case "timestamp with time zone":
+		return "TIMESTAMPTZ"
+	case "date":
+		return "DATE"
+	case "time without time zone":
+		return "TIME"
+	case "time with time zone":
+		return "TIMETZ"
+	case "interval":
+		return "INTERVAL"
+	case "uuid":
+		return "UUID"
+	case "json":
+		return "JSON"
+	case "jsonb":
+		return "JSONB"
+	case "xml":
+		return "XML"
+	case "bytea":
+		return "BYTEA"
+	case "bit":
+		return "BIT"
+	case "varbit", "bit varying":
+		return "VARBIT"
+	case "cidr":
+		return "CIDR"
+	case "inet":
+		return "INET"
+	case "macaddr":
+		return "MACADDR"
+	case "tsvector":
+		return "TSVECTOR"
+	case "tsquery":
+		return "TSQUERY"
 	default:
-		return strings.ToUpper(pgType)
+		return strings.ToUpper(col.DataType)
 	}
 }
