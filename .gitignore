@@ -1,0 +1,13 @@
+*.out
+go.work
+.vscode/
+.idea/
+CLAUDE.md
+.claude/
+.cursor/
+
+.DS_Store
+
+mig2schema
+/dist/
+/build/
