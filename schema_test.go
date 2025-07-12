@@ -42,10 +42,10 @@ func TestFormatSchema(t *testing.T) {
 	result := FormatSchema(tables)
 
 	assert.Contains(t, result, "Table: users")
-	assert.Contains(t, result, "id integer NOT NULL")
+	assert.Contains(t, result, "id INTEGER NOT NULL")
 	assert.Contains(t, result, "(PRIMARY KEY)")
-	assert.Contains(t, result, "email character varying NOT NULL")
-	assert.Contains(t, result, "name character varying NULL")
+	assert.Contains(t, result, "email VARCHAR(255) NOT NULL")
+	assert.Contains(t, result, "name VARCHAR(255) NULL")
 	assert.Contains(t, result, "idx_users_email on (email) (UNIQUE)")
 }
 
@@ -93,15 +93,21 @@ func TestFormatSchemaAsSQL(t *testing.T) {
 
 func TestMapDataType(t *testing.T) {
 	tests := []struct {
-		input    string
+		input    Column
 		expected string
 	}{
-		{"character varying", "VARCHAR(255)"},
-		{"text", "TEXT"},
-		{"integer", "INTEGER"},
-		{"boolean", "BOOLEAN"},
-		{"timestamp without time zone", "TIMESTAMP"},
-		{"unknown_type", "UNKNOWN_TYPE"},
+		{Column{DataType: "character varying"}, "VARCHAR(255)"},
+		{Column{DataType: "character varying", CharacterLength: sql.NullInt64{Int64: 100, Valid: true}}, "VARCHAR(100)"},
+		{Column{DataType: "text"}, "TEXT"},
+		{Column{DataType: "integer"}, "INTEGER"},
+		{Column{DataType: "serial"}, "SERIAL"},
+		{Column{DataType: "bigint"}, "BIGINT"},
+		{Column{DataType: "boolean"}, "BOOLEAN"},
+		{Column{DataType: "numeric", NumericPrecision: sql.NullInt64{Int64: 10, Valid: true}, NumericScale: sql.NullInt64{Int64: 2, Valid: true}}, "DECIMAL(10,2)"},
+		{Column{DataType: "timestamp without time zone"}, "TIMESTAMP"},
+		{Column{DataType: "uuid"}, "UUID"},
+		{Column{DataType: "json"}, "JSON"},
+		{Column{DataType: "unknown_type"}, "UNKNOWN_TYPE"},
 	}
 
 	for _, test := range tests {
@@ -159,9 +165,9 @@ func TestFormatSchemaWithDefaults(t *testing.T) {
 		result := FormatSchema(testSchema)
 		
 		assert.Contains(t, result, "Table: users")
-		assert.Contains(t, result, "id integer NOT NULL (PRIMARY KEY)")
-		assert.Contains(t, result, "email character varying NOT NULL")
-		assert.Contains(t, result, "created_at timestamp without time zone NULL DEFAULT CURRENT_TIMESTAMP")
+		assert.Contains(t, result, "id INTEGER NOT NULL (PRIMARY KEY)")
+		assert.Contains(t, result, "email VARCHAR(255) NOT NULL")
+		assert.Contains(t, result, "created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP")
 		assert.Contains(t, result, "idx_users_email on (email) (UNIQUE)")
 	})
 
