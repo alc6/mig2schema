@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
+
+	"github.com/alc6/mig2schema/providers"
 )
 
-//go:generate mockgen -source=interfaces.go -destination=mocks/mock_interfaces.go -package=mocks
+//go:generate mockgen -source=interfaces.go -destination=mocks/mock_interfaces.go -package=mocks -mock_names DatabaseManager=MockDatabaseManager,SchemaExtractor=MockSchemaExtractor,MigrationReader=MockMigrationReader
 
 // DatabaseManager handles database lifecycle and operations
 type DatabaseManager interface {
@@ -17,16 +19,18 @@ type DatabaseManager interface {
 	RunMigrations(migrations []Migration) error
 	// GetDB returns the underlying database connection
 	GetDB() *sql.DB
+	// GetConnectionString returns the database connection string
+	GetConnectionString() string
 }
 
 // SchemaExtractor handles extracting schema information from a database
 type SchemaExtractor interface {
 	// ExtractSchema retrieves schema information from the database
-	ExtractSchema(db *sql.DB) ([]Table, error)
+	ExtractSchema(db *sql.DB) ([]providers.Table, error)
 	// FormatSchema formats schema information as human-readable text
-	FormatSchema(tables []Table) string
+	FormatSchema(tables []providers.Table) string
 	// FormatSchemaAsSQL formats schema information as SQL CREATE statements
-	FormatSchemaAsSQL(tables []Table) string
+	FormatSchemaAsSQL(tables []providers.Table) string
 }
 
 // MigrationReader handles reading migration files

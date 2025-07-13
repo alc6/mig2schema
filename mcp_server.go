@@ -9,6 +9,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/alc6/mig2schema/providers"
 )
 
 // StartMCPServer starts the MCP server for schema extraction
@@ -20,14 +21,14 @@ func StartMCPServer() error {
 	)
 
 	extractSchemaTool := mcp.NewTool("extract_schema",
-		mcp.WithDescription("Extract database schema from PostgreSQL migration files"),
+		mcp.WithDescription("Extract database schema from PostgreSQL migration files using pg_dump"),
 		mcp.WithString("migration_directory",
 			mcp.Required(),
 			mcp.Description("Path to directory containing migration files"),
 		),
 		mcp.WithString("format",
-			mcp.Description("Output format: 'info' for human-readable (default) or 'sql' for CREATE statements"),
-			mcp.Enum("info", "sql"),
+			mcp.Description("Output format: 'sql' for CREATE statements (default)"),
+			mcp.Enum("sql"),
 		),
 	)
 
@@ -58,9 +59,11 @@ func handleExtractSchema(ctx context.Context, request mcp.CallToolRequest) (*mcp
 		return mcp.NewToolResultError("migration_directory parameter is required"), nil
 	}
 
-	format := request.GetString("format", "info")
+	format := request.GetString("format", "sql")
+	// Always use pg_dump provider in MCP mode
+	providerName := "pg_dump"
 
-	output, err := extractSchemaCore(ctx, migrationDir, format)
+	output, err := extractSchemaCore(ctx, migrationDir, format, providerName)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -69,12 +72,86 @@ func handleExtractSchema(ctx context.Context, request mcp.CallToolRequest) (*mcp
 }
 
 // extractSchemaCore contains the core logic for schema extraction, separated for testing
-func extractSchemaCore(ctx context.Context, migrationDir, format string) (string, error) {
+func extractSchemaCore(ctx context.Context, migrationDir, format, providerName string) (string, error) {
+	// Initialize provider registry
+	registry := providers.NewProviderRegistry()
+	registry.Register(providers.NewNativeProvider())
+	registry.Register(providers.NewPgDumpProvider())
+
+	provider, exists := registry.Get(providerName)
+	if !exists {
+		return "", fmt.Errorf("unknown provider: %s", providerName)
+	}
+
+	if !provider.IsAvailable() {
+		return "", fmt.Errorf("provider '%s' is not available in this environment", providerName)
+	}
+
 	migrationReader := NewFileMigrationReader()
 	dbManager := NewPostgreSQLManager()
-	schemaExtractor := NewPostgreSQLSchemaExtractor()
 	
-	return extractSchemaCoreWithDeps(ctx, migrationDir, format, migrationReader, dbManager, schemaExtractor)
+	return extractSchemaCoreWithProvider(ctx, migrationDir, format, migrationReader, dbManager, provider)
+}
+
+// extractSchemaCoreWithProvider is the provider-based extraction function
+func extractSchemaCoreWithProvider(ctx context.Context, migrationDir, format string, 
+	migrationReader MigrationReader, dbManager DatabaseManager, provider providers.SchemaProvider) (string, error) {
+	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("migration directory does not exist: %s", migrationDir)
+	}
+
+	migrations, err := migrationReader.DiscoverMigrations(migrationDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse migrations: %v", err)
+	}
+
+	if len(migrations) == 0 {
+		return "", fmt.Errorf("no migration files found in directory")
+	}
+
+	if err := dbManager.Setup(ctx); err != nil {
+		return "", fmt.Errorf("failed to setup postgresql: %v", err)
+	}
+	defer func() {
+		if err := dbManager.Close(ctx); err != nil {
+			slog.Error("failed to cleanup database", "error", err)
+		}
+	}()
+
+	if err := dbManager.RunMigrations(migrations); err != nil {
+		return "", fmt.Errorf("failed to run migrations: %v", err)
+	}
+
+	// Convert format string to SchemaFormat
+	var schemaFormat providers.SchemaFormat
+	switch format {
+	case "sql":
+		schemaFormat = providers.FormatSQL
+	default:
+		schemaFormat = providers.FormatInfo
+	}
+
+	// Extract schema using the provider
+	params := providers.ExtractParams{
+		DB:               dbManager.GetDB(),
+		ConnectionString: dbManager.GetConnectionString(),
+		Format:           schemaFormat,
+	}
+
+	result, err := provider.ExtractSchema(ctx, params)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract schema: %v", err)
+	}
+
+	// Format output based on result
+	var output string
+	if schemaFormat == providers.FormatSQL {
+		output = result.RawSQL
+	} else {
+		output = providers.FormatSchemaInfo(result.Tables)
+	}
+
+	return output, nil
 }
 
 // extractSchemaCoreWithDeps is the testable version with dependency injection
