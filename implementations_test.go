@@ -10,7 +10,7 @@ import (
 
 func TestPostgreSQLManager(t *testing.T) {
 	t.Run("new_postgresql_manager", func(t *testing.T) {
-		manager := NewPostgreSQLManager()
+		manager := NewPostgreSQLManager("postgres:16-alpine")
 		assert.NotNil(t, manager)
 		var _ DatabaseManager = manager
 	})
@@ -54,7 +54,7 @@ func TestFileMigrationReader(t *testing.T) {
 func TestImplementationsIntegration(t *testing.T) {
 	t.Run("manager_lifecycle", func(t *testing.T) {
 		ctx := context.Background()
-		manager := NewPostgreSQLManager().(*PostgreSQLManager)
+		manager := NewPostgreSQLManager("postgres:16-alpine").(*PostgreSQLManager)
 
 		err := manager.Setup(ctx)
 		assert.NoError(t, err)
