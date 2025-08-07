@@ -15,6 +15,7 @@ var (
 	mcpMode        bool
 	providerName   string
 	listProviders  bool
+	pgImage        string
 )
 
 var rootCmd = &cobra.Command{
@@ -64,6 +65,9 @@ func run() error {
 	if rootCmd.Flags().Lookup("list-providers") == nil {
 		rootCmd.Flags().BoolVar(&listProviders, "list-providers", false, "List available schema extraction providers")
 	}
+	if rootCmd.Flags().Lookup("pg-image") == nil {
+		rootCmd.Flags().StringVar(&pgImage, "pg-image", "postgres:16-alpine", "PostgreSQL Docker image to use")
+	}
 
 	return rootCmd.Execute()
 }
@@ -109,7 +113,7 @@ func runMig2Schema(cmd *cobra.Command, args []string) {
 	}
 
 	migrationReader := NewFileMigrationReader()
-	dbManager := NewPostgreSQLManager()
+	dbManager := NewPostgreSQLManager(pgImage)
 	
 	if err := processSchemaWithProvider(migrationDir, migrationReader, dbManager, provider); err != nil {
 		slog.Error("failed to process schema", "error", err)

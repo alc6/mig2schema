@@ -29,6 +29,13 @@ Outputs SQL CREATE statements that can be used to recreate the schema:
 ./mig2schema --extract /path/to/migrations
 ```
 
+### PostgreSQL Image Configuration
+By default, the tool uses `postgres:16-alpine`. You can specify a different PostgreSQL Docker image:
+```bash
+./mig2schema --pg-image postgres:17-alpine /path/to/migrations
+./mig2schema --pg-image pgvector/pgvector:pg16 /path/to/migrations
+```
+
 ### Schema Extraction Providers
 
 The tool supports multiple providers for extracting schema:
@@ -129,6 +136,7 @@ Extract database schema from migration files using pg_dump for complete DDL outp
 Parameters:
 - `migration_directory` (required): Path to directory containing migration files
 - `format` (optional): Output format - "sql" (default and only option)
+- `postgres_image` (optional): PostgreSQL Docker image to use (default: "postgres:16-alpine")
 
 Example usage in Claude Code:
 ```
@@ -142,3 +150,4 @@ Validate migration files without running them.
 
 Parameters:
 - `migration_directory` (required): Path to directory containing migration files
+- `postgres_image` (optional): PostgreSQL Docker image to use (default: "postgres:16-alpine")

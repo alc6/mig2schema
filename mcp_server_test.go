@@ -110,7 +110,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		result, err := extractSchemaCore(ctx, tempDir, "info", "native")
+		result, err := extractSchemaCore(ctx, tempDir, "info", "native", "postgres:16-alpine")
 		require.NoError(t, err)
 		assert.Contains(t, result, "Table: test_table")
 	})
@@ -126,7 +126,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		result, err := extractSchemaCore(ctx, tempDir, "sql", "native")
+		result, err := extractSchemaCore(ctx, tempDir, "sql", "native", "postgres:16-alpine")
 		require.NoError(t, err)
 		assert.Contains(t, result, "create table sql_test")
 	})
@@ -137,7 +137,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		_, err := extractSchemaCore(ctx, tempDir, "info", "native")
+		_, err := extractSchemaCore(ctx, tempDir, "info", "native", "postgres:16-alpine")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no migration files found")
 	})
@@ -146,7 +146,7 @@ func TestExtractSchemaCore(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		
-		_, err := extractSchemaCore(ctx, "/nonexistent/path", "info", "native")
+		_, err := extractSchemaCore(ctx, "/nonexistent/path", "info", "native", "postgres:16-alpine")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "migration directory does not exist")
 	})

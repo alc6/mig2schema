@@ -30,6 +30,9 @@ func StartMCPServer() error {
 			mcp.Description("Output format: 'sql' for CREATE statements (default)"),
 			mcp.Enum("sql"),
 		),
+		mcp.WithString("postgres_image",
+			mcp.Description("PostgreSQL Docker image to use (default: postgres:16-alpine)"),
+		),
 	)
 
 	s.AddTool(extractSchemaTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -41,6 +44,9 @@ func StartMCPServer() error {
 		mcp.WithString("migration_directory",
 			mcp.Required(),
 			mcp.Description("Path to directory containing migration files"),
+		),
+		mcp.WithString("postgres_image",
+			mcp.Description("PostgreSQL Docker image to use (default: postgres:16-alpine)"),
 		),
 	)
 
@@ -60,10 +66,11 @@ func handleExtractSchema(ctx context.Context, request mcp.CallToolRequest) (*mcp
 	}
 
 	format := request.GetString("format", "sql")
+	pgImage := request.GetString("postgres_image", "postgres:16-alpine")
 	// Always use pg_dump provider in MCP mode
 	providerName := "pg_dump"
 
-	output, err := extractSchemaCore(ctx, migrationDir, format, providerName)
+	output, err := extractSchemaCore(ctx, migrationDir, format, providerName, pgImage)
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
@@ -72,7 +79,7 @@ func handleExtractSchema(ctx context.Context, request mcp.CallToolRequest) (*mcp
 }
 
 // extractSchemaCore contains the core logic for schema extraction, separated for testing
-func extractSchemaCore(ctx context.Context, migrationDir, format, providerName string) (string, error) {
+func extractSchemaCore(ctx context.Context, migrationDir, format, providerName, pgImage string) (string, error) {
 	// Initialize provider registry
 	registry := providers.NewProviderRegistry()
 	registry.Register(providers.NewNativeProvider())
@@ -88,7 +95,7 @@ func extractSchemaCore(ctx context.Context, migrationDir, format, providerName s
 	}
 
 	migrationReader := NewFileMigrationReader()
-	dbManager := NewPostgreSQLManager()
+	dbManager := NewPostgreSQLManager(pgImage)
 	
 	return extractSchemaCoreWithProvider(ctx, migrationDir, format, migrationReader, dbManager, provider)
 }
