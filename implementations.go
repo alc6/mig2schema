@@ -20,16 +20,17 @@ type PostgreSQLManager struct {
 	container testcontainers.Container
 	db        *sql.DB
 	connStr   string
+	image     string
 }
 
-func NewPostgreSQLManager() DatabaseManager {
-	return &PostgreSQLManager{}
+func NewPostgreSQLManager(image string) DatabaseManager {
+	return &PostgreSQLManager{image: image}
 }
 
 func (p *PostgreSQLManager) Setup(ctx context.Context) error {
-	slog.Debug("starting postgresql container")
+	slog.Debug("starting postgresql container", "image", p.image)
 	container, err := postgres.Run(ctx,
-		"postgres:16-alpine",
+		p.image,
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
